@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+!.env.example
+!.env.test
+
+# Docker volumes
+data/
+opensearch-data/
+ollama-data/
+postgres-data/
+redis-data/
+
+# Airflow
+airflow/logs/
+airflow/plugins/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# PDF cache
+*.pdf
+pdf_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Ruff
+.ruff_cache/
