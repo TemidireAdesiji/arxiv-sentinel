@@ -1,0 +1,141 @@
+services:
+  api:
+    container_name: sentinel-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      DB_URL: "postgresql+psycopg2://sentinel:sentinel@postgres:5432/sentinel_db"
+      SEARCH__HOST: "http://opensearch:9200"
+      LLM__HOST: "http://ollama:11434"
+      CACHE__HOST: "redis"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: >-
+        python -c "import urllib.request;
+        urllib.request.urlopen('http://localhost:8000/api/v1/health')"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - sentinel-net
+
+  postgres:
+    container_name: sentinel-postgres
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+      POSTGRES_DB: sentinel_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - sentinel-net
+
+  opensearch:
+    container_name: sentinel-opensearch
+    image: opensearchproject/opensearch:2.19.0
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - os_data:/usr/share/opensearch/data
+    healthcheck:
+      test: >-
+        curl -sf http://localhost:9200/_cluster/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - sentinel-net
+
+  opensearch-dashboards:
+    container_name: sentinel-dashboards
+    image: opensearchproject/opensearch-dashboards:2.19.0
+    ports:
+      - "5601:5601"
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: >-
+        curl -sf http://localhost:5601/api/status || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - sentinel-net
+
+  redis:
+    container_name: sentinel-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: >-
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - sentinel-net
+
+  ollama:
+    container_name: sentinel-ollama
+    image: ollama/ollama:0.11.2
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - sentinel-net
+
+volumes:
+  pg_data:
+  os_data:
+  redis_data:
+  ollama_data:
+
+networks:
+  sentinel-net:
+    driver: bridge
