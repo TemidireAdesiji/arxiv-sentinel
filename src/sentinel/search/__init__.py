@@ -1,0 +1,1 @@
+"""OpenSearch hybrid-search layer."""
