@@ -1,0 +1,40 @@
+services:
+  airflow:
+    container_name: sentinel-airflow
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+        postgresql+psycopg2://sentinel:sentinel@postgres:5432/sentinel_db
+      PYTHONPATH: /opt/airflow/src
+    env_file: .env
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - airflow_logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - sentinel-net
+
+volumes:
+  airflow_logs:
+
+networks:
+  sentinel-net:
+    external: true
+    name: arxiv-sentinel_sentinel-net
